@@ -3,7 +3,9 @@ use std::io;
 use std::process;
 
 fn match_pattern(input_line: &str, pattern: &str) -> bool {
-    if pattern.chars().count() == 1 {
+    if pattern == r"\d" {
+        return input_line[0..1].chars().all(char::is_numeric);
+    } else if pattern.chars().count() == 1 {
         return input_line.contains(pattern);
     } else {
         panic!("Unhandled pattern: {}", pattern)

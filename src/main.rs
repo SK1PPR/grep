@@ -7,6 +7,8 @@ fn match_pattern(input_line: &str, pattern: &str) -> bool {
         return input_line.chars().any(char::is_numeric);
     } else if pattern == r"\w" {
         return input_line.chars().any(char::is_alphanumeric);
+    } else if pattern.chars().nth(0).unwrap() == '[' {
+        return pattern.chars().any(|c| input_line.contains(c));
     } else if pattern.chars().count() == 1 {
         return input_line.contains(pattern);
     } else {

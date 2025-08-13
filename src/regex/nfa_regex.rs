@@ -1,0 +1,233 @@
+use crate::regex::elements::{Matcher, State};
+use crate::regex::engine::Engine;
+use crate::regex::parser::Token;
+
+pub struct RegexNFA {
+    pub engine: Engine,
+    pub pattern: String,
+}
+
+enum Quantifier {
+    Star,
+    Question,
+    Plus,
+}
+
+impl RegexNFA {
+    pub fn new(pattern: String) -> Self {
+        let tokens = crate::regex::parser::postfix_generator(&pattern);
+        let engine = create_engine(tokens);
+        RegexNFA { engine, pattern }
+    }
+
+    pub fn matches(&self, input: &str) -> bool {
+
+        if input.is_empty() && self.pattern.is_empty() {
+            return true; // Empty pattern matches empty input
+        }
+
+        // Slice input and keep checking until found
+        for i in 0..input.len() {
+            if self.engine.compute(&input[i..]) {
+                return true; // Found a match
+            }
+        }
+
+        return false;
+    }
+}
+
+fn create_engine(tokens: Vec<Token>) -> Engine {
+    let mut engine_stack: Vec<Engine> = vec![];
+
+    let mut iter = tokens.iter().peekable();
+    while let Some(token) = iter.next() {
+        match token {
+            Token::Literal(c) => {
+                let nfa = literal_nfa(c.clone());
+                engine_stack.push(nfa);
+            }
+            Token::ComplexLiteral(s) => {
+                let nfa = comple_nfa(&s);
+                engine_stack.push(nfa);
+            }
+            Token::Star => {
+                if let Some(next_token) = iter.peek() {
+                    if next_token == &&Token::Question {
+                        iter.next();
+                        let engine = engine_stack.pop().expect("Expected engine for star");
+                        let nfa = special_nfa_quantifier(engine, true, Quantifier::Star);
+                        engine_stack.push(nfa);
+                        continue;
+                    }
+                }
+
+                let engine = engine_stack.pop().expect("Expected engine for star");
+                let nfa = special_nfa_quantifier(engine, false, Quantifier::Star);
+                engine_stack.push(nfa);
+            }
+            Token::Question => {
+                if let Some(next_token) = iter.peek() {
+                    if next_token == &&Token::Question {
+                        iter.next();
+                        let engine = engine_stack.pop().expect("Expected engine for question");
+                        let nfa = special_nfa_quantifier(engine, true, Quantifier::Plus);
+                        engine_stack.push(nfa);
+                        continue;
+                    }
+                }
+
+                let engine = engine_stack.pop().expect("Expected engine for question");
+                let nfa = special_nfa_quantifier(engine, false, Quantifier::Question);
+                engine_stack.push(nfa);
+            }
+            Token::Plus => {
+                if let Some(next_token) = iter.peek() {
+                    if next_token == &&Token::Question {
+                        iter.next();
+                        let engine = engine_stack.pop().expect("Expected engine for plus");
+                        let nfa = special_nfa_quantifier(engine, true, Quantifier::Plus);
+                        engine_stack.push(nfa);
+                        continue;
+                    }
+                }
+
+                let engine = engine_stack.pop().expect("Expected engine for plus");
+                let nfa = special_nfa_quantifier(engine, false, Quantifier::Plus);
+                engine_stack.push(nfa);
+            }
+            Token::Or => {
+                let right = engine_stack.pop().expect("Expected right engine for union");
+                let left = engine_stack.pop().expect("Expected left engine for union");
+                let nfa = union_nfa(left, right);
+                engine_stack.push(nfa);
+            }
+            Token::Concat => {
+                let right = engine_stack
+                    .pop()
+                    .expect("Expected right engine for concat");
+                let left = engine_stack.pop().expect("Expected left engine for concat");
+                let nfa = concat_nfa(left, right);
+                engine_stack.push(nfa);
+            }
+            _ => {}
+        }
+    }
+
+    assert_eq!(engine_stack.len(), 1, "Expected exactly one engine in stack after processing tokens");
+    engine_stack.pop().expect("Expected final engine")
+}
+
+fn one_step_nfa(matcher: Matcher) -> Engine {
+    let mut engine = Engine::new();
+    let mut start_state = State::new(0);
+    let end_state = State::new(1);
+    start_state.add_transition(matcher, 1);
+    engine.add_states(vec![start_state, end_state]);
+    engine.set_start_state(0);
+    engine.set_end_state(1);
+    engine
+}
+
+fn literal_nfa(c: char) -> Engine {
+    one_step_nfa(Matcher::create_simple_matcher(&c))
+}
+
+fn comple_nfa(input: &str) -> Engine {
+    one_step_nfa(Matcher::create_complex_matcher(input))
+}
+
+fn union_nfa(left: Engine, mut right: Engine) -> Engine {
+    let mut engine = Engine::new();
+    let start_state_id = engine.states.len();
+    let end_state_id = start_state_id + 1;
+
+    engine.add_states(left.states.clone());
+    right.shift_ids(left.states.len());
+    engine.add_states(right.states);
+
+    engine.set_start_state(start_state_id);
+    engine.set_end_state(end_state_id);
+
+    // Add epsilon transitions from the start state to both left and right engines
+    engine.add_transition(start_state_id, Matcher::Epsilon, left.start_state);
+    engine.add_transition(start_state_id, Matcher::Epsilon, right.start_state);
+
+    // Add epsilon transitions from both left and right engines to the end state
+    engine.add_transition(left.end_state, Matcher::Epsilon, end_state_id);
+    engine.add_transition(right.end_state, Matcher::Epsilon, end_state_id);
+
+    engine
+}
+
+fn concat_nfa(left: Engine, mut right: Engine) -> Engine {
+    let mut engine = Engine::new();
+    let start_state_id = engine.states.len();
+    let end_state_id = start_state_id + 1;
+
+    engine.add_states(left.states.clone());
+    right.shift_ids(left.states.len());
+    engine.add_states(right.states);
+
+    engine.set_start_state(start_state_id);
+    engine.set_end_state(end_state_id);
+
+    // Add epsilon transition from the end of left to the start of right
+    engine.add_transition(left.end_state, Matcher::Epsilon, right.start_state);
+
+    // Add transitions from the start state to the left engine
+    engine.add_transition(start_state_id, Matcher::Epsilon, left.start_state);
+
+    // Add transitions from the end of right to the end state
+    engine.add_transition(right.end_state, Matcher::Epsilon, end_state_id);
+
+    engine
+}
+
+fn special_nfa_quantifier(engine: Engine, lazy: bool, quantifier: Quantifier) -> Engine {
+    let mut new_engine = Engine::new();
+    let start_state_id = new_engine.states.len();
+    let end_state_id = start_state_id + 1;
+
+    new_engine.add_states(engine.states.clone());
+    new_engine.set_start_state(start_state_id);
+    new_engine.set_end_state(end_state_id);
+
+    // Order of epsilon transitions depends on wether the quantifier is lazy or not
+    match quantifier {
+        Quantifier::Star => {
+            if lazy {
+                new_engine.add_transition(start_state_id, Matcher::Epsilon, engine.start_state);
+                new_engine.add_transition(start_state_id, Matcher::Epsilon, end_state_id);
+                new_engine.add_transition(engine.end_state, Matcher::Epsilon, start_state_id);
+                new_engine.add_transition(engine.end_state, Matcher::Epsilon, end_state_id);
+            } else {
+                new_engine.add_transition(start_state_id, Matcher::Epsilon, end_state_id);
+                new_engine.add_transition(start_state_id, Matcher::Epsilon, engine.start_state);
+                new_engine.add_transition(engine.end_state, Matcher::Epsilon, end_state_id);
+                new_engine.add_transition(engine.end_state, Matcher::Epsilon, start_state_id);
+            }
+        }
+        Quantifier::Question => {
+            if lazy {
+                new_engine.add_transition(start_state_id, Matcher::Epsilon, engine.start_state);
+                new_engine.add_transition(engine.end_state, Matcher::Epsilon, end_state_id);
+            } else {
+                new_engine.add_transition(engine.end_state, Matcher::Epsilon, end_state_id);
+                new_engine.add_transition(start_state_id, Matcher::Epsilon, end_state_id);
+            }
+        }
+        Quantifier::Plus => {
+            if lazy {
+                new_engine.add_transition(start_state_id, Matcher::Epsilon, engine.start_state);
+                new_engine.add_transition(start_state_id, Matcher::Epsilon, end_state_id);
+            } else {
+                new_engine.add_transition(start_state_id, Matcher::Epsilon, end_state_id);
+                new_engine.add_transition(start_state_id, Matcher::Epsilon, engine.start_state);
+            }
+            new_engine.add_transition(engine.end_state, Matcher::Epsilon, end_state_id);
+        }
+    }
+
+    new_engine
+}

@@ -44,9 +44,31 @@ impl Engine {
                 return true;
             }
 
+            // Make sure we only make epsilon transitions if we are out of bounds
+            if input_index >= input.len() {
+                if let Some(state) = self.states.iter().find(|s| s.id == current_state_id) {
+                    if let Some((_, next_state_id)) =
+                        state.transitions.iter().rev().find(|(m, _)| m.is_epsilon())
+                    {
+                        if memory.contains(&next_state_id) {
+                            continue; // Avoid cycles
+                        }
+                        let mut memory = memory.clone();
+                        memory.push(next_state_id.clone());
+                        stack.push((next_state_id.clone(), input_index, memory.clone()));
+                    }
+                }
+                continue;
+            }
+
             let input_char = input.chars().nth(input_index).unwrap();
             if let Some(state) = self.states.iter().find(|s| s.id == current_state_id) {
-                if let Some((matcher, next_state_id)) = state.transitions.iter().rev().find(|(m, _)| m.matches(input_char)) {
+                for (matcher, next_state_id) in state
+                    .transitions
+                    .iter()
+                    .rev()
+                    .filter(|(m, _)| m.matches(input_char))
+                {
                     if matcher.is_epsilon() {
                         if memory.contains(&next_state_id) {
                             continue; // Avoid cycles
@@ -55,7 +77,7 @@ impl Engine {
                         memory.push(next_state_id.clone());
                         stack.push((next_state_id.clone(), input_index, memory.clone()));
                     } else {
-                        if input_index + 1 < input.len() {
+                        if input_index + 1 <= input.len() {
                             stack.push((next_state_id.clone(), input_index + 1, Vec::new()));
                         }
                     }
@@ -72,5 +94,12 @@ impl Engine {
         }
         self.start_state += shift;
         self.end_state += shift;
+
+        #[cfg(debug_assertions)]
+        {
+            println!("Shifted start state to {}", self.start_state);
+            println!("Shifted end state to {}", self.end_state);
+            println!("Shifted states are {:?}", self.states);
+        }
     }
 }

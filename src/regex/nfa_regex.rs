@@ -21,7 +21,6 @@ impl RegexNFA {
     }
 
     pub fn matches(&self, input: &str) -> bool {
-
         if input.is_empty() && self.pattern.is_empty() {
             return true; // Empty pattern matches empty input
         }
@@ -38,6 +37,8 @@ impl RegexNFA {
 }
 
 fn create_engine(tokens: Vec<Token>) -> Engine {
+    println!("Creating NFA from tokens: {:?}", tokens);
+
     let mut engine_stack: Vec<Engine> = vec![];
 
     let mut iter = tokens.iter().peekable();
@@ -114,7 +115,11 @@ fn create_engine(tokens: Vec<Token>) -> Engine {
         }
     }
 
-    assert_eq!(engine_stack.len(), 1, "Expected exactly one engine in stack after processing tokens");
+    assert_eq!(
+        engine_stack.len(),
+        1,
+        "Expected exactly one engine in stack after processing tokens"
+    );
     engine_stack.pop().expect("Expected final engine")
 }
 
@@ -139,7 +144,7 @@ fn comple_nfa(input: &str) -> Engine {
 
 fn union_nfa(left: Engine, mut right: Engine) -> Engine {
     let mut engine = Engine::new();
-    let start_state_id = engine.states.len();
+    let start_state_id = left.states.len() + right.states.len();
     let end_state_id = start_state_id + 1;
 
     engine.add_states(left.states.clone());
@@ -148,6 +153,8 @@ fn union_nfa(left: Engine, mut right: Engine) -> Engine {
 
     engine.set_start_state(start_state_id);
     engine.set_end_state(end_state_id);
+
+    engine.add_states(vec![State::new(start_state_id), State::new(end_state_id)]);
 
     // Add epsilon transitions from the start state to both left and right engines
     engine.add_transition(start_state_id, Matcher::Epsilon, left.start_state);
@@ -157,12 +164,22 @@ fn union_nfa(left: Engine, mut right: Engine) -> Engine {
     engine.add_transition(left.end_state, Matcher::Epsilon, end_state_id);
     engine.add_transition(right.end_state, Matcher::Epsilon, end_state_id);
 
+    #[cfg(debug_assertions)]
+    {
+        println!(
+            "Created concat NFA with start state {} and end state {}",
+            start_state_id, end_state_id
+        );
+
+        println!("Final states: {:?}", engine.states);
+    }
+
     engine
 }
 
 fn concat_nfa(left: Engine, mut right: Engine) -> Engine {
     let mut engine = Engine::new();
-    let start_state_id = engine.states.len();
+    let start_state_id = left.states.len() + right.states.len();
     let end_state_id = start_state_id + 1;
 
     engine.add_states(left.states.clone());
@@ -172,6 +189,8 @@ fn concat_nfa(left: Engine, mut right: Engine) -> Engine {
     engine.set_start_state(start_state_id);
     engine.set_end_state(end_state_id);
 
+    engine.add_states(vec![State::new(start_state_id), State::new(end_state_id)]);
+
     // Add epsilon transition from the end of left to the start of right
     engine.add_transition(left.end_state, Matcher::Epsilon, right.start_state);
 
@@ -180,6 +199,16 @@ fn concat_nfa(left: Engine, mut right: Engine) -> Engine {
 
     // Add transitions from the end of right to the end state
     engine.add_transition(right.end_state, Matcher::Epsilon, end_state_id);
+
+    #[cfg(debug_assertions)]
+    {
+        println!(
+            "Created concat NFA with start state {} and end state {}",
+            start_state_id, end_state_id
+        );
+
+        println!("Final states: {:?}", engine.states);
+    }
 
     engine
 }
@@ -230,4 +259,43 @@ fn special_nfa_quantifier(engine: Engine, lazy: bool, quantifier: Quantifier) ->
     }
 
     new_engine
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_single_character_match() {
+        let pattern = "a".to_string();
+        let regex_nfa = RegexNFA::new(pattern);
+        assert_eq!(regex_nfa.pattern, "a");
+        assert!(regex_nfa.matches("aaab"));
+        assert!(regex_nfa.matches("ab"));
+        assert!(!regex_nfa.matches("bba"));
+    }
+
+    #[test]
+    fn test_concat_match() {
+        let pattern = "ab".to_string();
+        let regex_nfa = RegexNFA::new(pattern);
+        assert_eq!(regex_nfa.pattern, "ab");
+        assert!(!regex_nfa.matches("aaac"));
+        assert!(regex_nfa.matches("cab"));
+        assert!(regex_nfa.matches("ab"));
+        assert!(!regex_nfa.matches("bba"));
+    }
+
+    #[test]
+    fn test_union_match() {
+        let pattern = "a|b".to_string();
+        let regex_nfa = RegexNFA::new(pattern);
+        assert_eq!(regex_nfa.pattern, "a|b");
+        assert!(regex_nfa.matches("a"));
+        assert!(regex_nfa.matches("b"));
+        assert!(!regex_nfa.matches("c"));
+        assert!(regex_nfa.matches("cccccab"));
+    }
+
+    
 }

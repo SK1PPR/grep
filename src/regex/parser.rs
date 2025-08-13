@@ -234,30 +234,29 @@ mod tests {
     use crate::regex::parser::{postfix_generator, Token};
 
     fn to_string(tokens: Vec<Token>) -> String {
-    tokens
-        .into_iter()
-        .map(|token| match token {
-            Token::Plus => "+".to_string(),
-            Token::Star => "*".to_string(),
-            Token::Question => "?".to_string(),
-            Token::Literal(c) => c.to_string(),
-            Token::EndRef => "$".to_string(),
-            Token::StartRef => "^".to_string(),
-            Token::ComplexLiteral(s) => s,
-            Token::LBracket => "(".to_string(),
-            Token::RBracket => ")".to_string(),
-            Token::Concat => ".".to_string(), // Concat is implicit
-            Token::Or => "|".to_string(),
-            _ => "".to_string(), // Handle other tokens if needed
-        })
-        .collect()
-}
+        tokens
+            .into_iter()
+            .map(|token| match token {
+                Token::Plus => "+".to_string(),
+                Token::Star => "*".to_string(),
+                Token::Question => "?".to_string(),
+                Token::Literal(c) => c.to_string(),
+                Token::EndRef => "$".to_string(),
+                Token::StartRef => "^".to_string(),
+                Token::ComplexLiteral(s) => s,
+                Token::LBracket => "(".to_string(),
+                Token::RBracket => ")".to_string(),
+                Token::Concat => ".".to_string(), // Concat is implicit
+                Token::Or => "|".to_string(),
+                _ => "".to_string(), // Handle other tokens if needed
+            })
+            .collect()
+    }
 
-fn to_postfix(input: &str) -> String {
-    let tokens = postfix_generator(input);
-    to_string(tokens)
-}
-
+    fn to_postfix(input: &str) -> String {
+        let tokens = postfix_generator(input);
+        to_string(tokens)
+    }
 
     #[test]
     fn test_single_literal() {

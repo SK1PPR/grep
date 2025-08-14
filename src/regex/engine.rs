@@ -34,14 +34,14 @@ impl Engine {
         }
     }
 
-    pub fn compute(&self, input: &str) -> bool {
+    pub fn compute(&self, input: &str) -> i32 {
         let mut stack: Vec<(usize, usize, Vec<usize>)> = vec![];
         stack.push((self.start_state, 0, Vec::new()));
 
         while stack.len() > 0 {
             let (current_state_id, input_index, memory) = stack.pop().unwrap();
             if current_state_id == self.end_state {
-                return true;
+                return input_index as i32;
             }
 
             // Make sure we only make epsilon transitions if we are out of bounds
@@ -85,7 +85,7 @@ impl Engine {
             }
         }
 
-        return false;
+        return -1;
     }
 
     pub fn shift_ids(&mut self, shift: usize) {

@@ -5,6 +5,8 @@ use crate::regex::parser::Token;
 pub struct RegexNFA {
     pub engine: Engine,
     pub pattern: String,
+    starts_with: bool,
+    ends_with: bool,
 }
 
 enum Quantifier {
@@ -16,8 +18,15 @@ enum Quantifier {
 impl RegexNFA {
     pub fn new(pattern: String) -> Self {
         let tokens = crate::regex::parser::postfix_generator(&pattern);
-        let engine = create_engine(tokens);
-        RegexNFA { engine, pattern }
+        let engine = create_engine(&tokens);
+        let starts_with = matches!(tokens.first(), Some(Token::StartRef));
+        let ends_with = matches!(tokens.last(), Some(Token::EndRef));
+        RegexNFA {
+            engine,
+            pattern,
+            starts_with,
+            ends_with,
+        }
     }
 
     pub fn matches(&self, input: &str) -> bool {
@@ -25,9 +34,29 @@ impl RegexNFA {
             return true; // Empty pattern matches empty input
         }
 
+        if self.starts_with {
+            let index = self.engine.compute(input);
+            if self.ends_with {
+                if index == input.len() as i32 {
+                    return true; // Matches the entire input
+                }
+                return false;
+            }
+            if index >= 0 {
+                return true; // Matches from the start
+            }
+        }
+
         // Slice input and keep checking until found
         for i in 0..input.len() {
-            if self.engine.compute(&input[i..]) {
+            let index = self.engine.compute(&input[i..]);
+            if index >= 0 {
+                if self.ends_with {
+                    if index as usize + i == input.len() {
+                        return true; // Matches the entire input
+                    }
+                    return false;
+                }
                 return true; // Found a match
             }
         }
@@ -36,7 +65,7 @@ impl RegexNFA {
     }
 }
 
-fn create_engine(tokens: Vec<Token>) -> Engine {
+fn create_engine(tokens: &Vec<Token>) -> Engine {
     println!("Creating NFA from tokens: {:?}", tokens);
 
     let mut engine_stack: Vec<Engine> = vec![];
@@ -111,7 +140,10 @@ fn create_engine(tokens: Vec<Token>) -> Engine {
                 let nfa = concat_nfa(left, right);
                 engine_stack.push(nfa);
             }
-            _ => {}
+            Token::StartRef | Token::EndRef => {}
+            _ => {
+                panic!("Unexpected token: {:?}", token);
+            }
         }
     }
 

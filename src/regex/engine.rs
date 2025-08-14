@@ -46,9 +46,13 @@ impl Engine {
 
             // Make sure we only make epsilon transitions if we are out of bounds
             if input_index >= input.len() {
+                println!("Reached end of input, checking for epsilon transitions");
                 if let Some(state) = self.states.iter().find(|s| s.id == current_state_id) {
-                    if let Some((_, next_state_id)) =
-                        state.transitions.iter().rev().find(|(m, _)| m.is_epsilon())
+                    for (_, next_state_id) in state
+                        .transitions
+                        .iter()
+                        .rev()
+                        .filter(|(m, _)| m.is_epsilon())
                     {
                         if memory.contains(&next_state_id) {
                             continue; // Avoid cycles

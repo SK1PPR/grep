@@ -1,3 +1,5 @@
+use std::vec;
+
 use crate::regex::elements::{Matcher, State};
 use crate::regex::engine::Engine;
 use crate::regex::parser::Token;
@@ -30,21 +32,24 @@ impl RegexNFA {
     }
 
     pub fn matches(&self, input: &str) -> bool {
-        if input.is_empty() && self.pattern.is_empty() {
-            return true; // Empty pattern matches empty input
+        if input.is_empty() {
+            println!("Input is empty, checking for empty match");
+            return self.engine.compute(input) != -1;
         }
 
         if self.starts_with {
+            println!("Start reference is set, checking from the start of input");
             let index = self.engine.compute(input);
-            if self.ends_with {
-                if index == input.len() as i32 {
-                    return true; // Matches the entire input
-                }
-                return false;
-            }
             if index >= 0 {
+                if self.ends_with {
+                    if index == input.len() as i32 {
+                        return true; // Matches the entire input
+                    }
+                    return false;
+                }
                 return true; // Matches from the start
             }
+            return false;
         }
 
         // Slice input and keep checking until found
@@ -247,12 +252,14 @@ fn concat_nfa(left: Engine, mut right: Engine) -> Engine {
 
 fn special_nfa_quantifier(engine: Engine, lazy: bool, quantifier: Quantifier) -> Engine {
     let mut new_engine = Engine::new();
-    let start_state_id = new_engine.states.len();
+    let start_state_id = engine.states.len();
     let end_state_id = start_state_id + 1;
 
     new_engine.add_states(engine.states.clone());
     new_engine.set_start_state(start_state_id);
     new_engine.set_end_state(end_state_id);
+
+    new_engine.add_states(vec![State::new(start_state_id), State::new(end_state_id)]);
 
     // Order of epsilon transitions depends on wether the quantifier is lazy or not
     match quantifier {
@@ -272,15 +279,6 @@ fn special_nfa_quantifier(engine: Engine, lazy: bool, quantifier: Quantifier) ->
         Quantifier::Question => {
             if lazy {
                 new_engine.add_transition(start_state_id, Matcher::Epsilon, engine.start_state);
-                new_engine.add_transition(engine.end_state, Matcher::Epsilon, end_state_id);
-            } else {
-                new_engine.add_transition(engine.end_state, Matcher::Epsilon, end_state_id);
-                new_engine.add_transition(start_state_id, Matcher::Epsilon, end_state_id);
-            }
-        }
-        Quantifier::Plus => {
-            if lazy {
-                new_engine.add_transition(start_state_id, Matcher::Epsilon, engine.start_state);
                 new_engine.add_transition(start_state_id, Matcher::Epsilon, end_state_id);
             } else {
                 new_engine.add_transition(start_state_id, Matcher::Epsilon, end_state_id);
@@ -288,6 +286,26 @@ fn special_nfa_quantifier(engine: Engine, lazy: bool, quantifier: Quantifier) ->
             }
             new_engine.add_transition(engine.end_state, Matcher::Epsilon, end_state_id);
         }
+        Quantifier::Plus => {
+            if lazy {
+                new_engine.add_transition(engine.end_state, Matcher::Epsilon, start_state_id);
+                new_engine.add_transition(engine.end_state, Matcher::Epsilon, end_state_id);
+            } else {
+                new_engine.add_transition(engine.end_state, Matcher::Epsilon, end_state_id);
+                new_engine.add_transition(engine.end_state, Matcher::Epsilon, start_state_id);
+            }
+            new_engine.add_transition(start_state_id, Matcher::Epsilon, engine.start_state);
+        }
+    }
+
+    #[cfg(debug_assertions)]
+    {
+        println!(
+            "Created special NFA with start state {} and end state {}",
+            start_state_id, end_state_id
+        );
+
+        println!("Final states: {:?}", new_engine.states);
     }
 
     new_engine
@@ -329,5 +347,60 @@ mod tests {
         assert!(regex_nfa.matches("cccccab"));
     }
 
-    // Test quantifiers and lazy quantifiers
+    // Test quantifiers
+    #[test]
+    fn test_plus_match() {
+        let pattern = "a+".to_string();
+        let regex_nfa = RegexNFA::new(pattern);
+        assert_eq!(regex_nfa.pattern, "a+");
+        assert!(regex_nfa.matches("aaaa"));
+        assert!(!regex_nfa.matches(""));
+        assert!(!regex_nfa.matches("b"));
+        assert!(regex_nfa.matches("bbaaa"));
+    }
+
+    #[test]
+    fn test_question_match() {
+        let pattern = "a?".to_string();
+        let regex_nfa = RegexNFA::new(pattern);
+        assert_eq!(regex_nfa.pattern, "a?");
+        assert!(regex_nfa.matches("a"));
+        assert!(regex_nfa.matches(""));
+        assert!(regex_nfa.matches("b"));
+        assert!(regex_nfa.matches("bba"));
+    }
+
+    #[test]
+    fn test_star_match() {
+        let pattern = "a*".to_string();
+        let regex_nfa = RegexNFA::new(pattern);
+        assert_eq!(regex_nfa.pattern, "a*");
+        assert!(regex_nfa.matches("aaaa"));
+        assert!(regex_nfa.matches(""));
+        assert!(regex_nfa.matches("b"));
+        assert!(regex_nfa.matches("bbaaa"));
+    }
+
+    // Start ref and end ref tests
+    #[test]
+    fn test_start_ref_match() {
+        let pattern = "^a".to_string();
+        let regex_nfa = RegexNFA::new(pattern);
+        assert_eq!(regex_nfa.pattern, "^a");
+        assert!(regex_nfa.matches("abc"));
+        assert!(!regex_nfa.matches("bca"));
+        assert!(!regex_nfa.matches("cba"));
+    }
+
+    #[test]
+    fn test_end_ref_match() {
+        let pattern = "a$".to_string();
+        let regex_nfa = RegexNFA::new(pattern);
+        assert_eq!(regex_nfa.pattern, "a$");
+        assert!(regex_nfa.matches("ba"));
+        assert!(!regex_nfa.matches("ab"));
+        assert!(regex_nfa.matches("cba"));
+    }
+
+    // TODO: Test lazy quantifiers
 }

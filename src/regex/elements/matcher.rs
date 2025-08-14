@@ -190,7 +190,9 @@ mod tests {
         assert!(!matcher.is_epsilon());
         assert!(!matcher.matches('a'));
         assert!(!matcher.matches('Z'));
+        assert!(!matcher.matches('c'));
         assert!(!matcher.matches('1'));
+        assert!(!matcher.matches('5'));
         assert!(!matcher.matches('_'));
         assert!(matcher.matches(' '));
     }
@@ -215,7 +217,7 @@ mod tests {
         let matcher = Matcher::create_complex_matcher("[abz]".to_string().as_str());
         assert!(!matcher.is_epsilon());
         assert!(matcher.matches('a'));
-        assert!(matcher.matches('z'));
+        assert!(matcher.matches('b'));
         assert!(!matcher.matches('A'));
         assert!(!matcher.matches('1'));
     }
@@ -225,8 +227,19 @@ mod tests {
         let matcher = Matcher::create_complex_matcher("[^abz]".to_string().as_str());
         assert!(!matcher.is_epsilon());
         assert!(!matcher.matches('a'));
-        assert!(!matcher.matches('z'));
+        assert!(!matcher.matches('b'));
         assert!(matcher.matches('A'));
         assert!(matcher.matches('1'));
+    }
+
+    #[test]
+    fn test_dot_matcher() {
+        let matcher = Matcher::create_complex_matcher(".".to_string().as_str());
+        assert!(!matcher.is_epsilon());
+        assert!(matcher.matches('a'));
+        assert!(matcher.matches('1'));
+        assert!(matcher.matches(' '));
+        assert!(!matcher.matches('\n'));
+        assert!(!matcher.matches('\r'));
     }
 }

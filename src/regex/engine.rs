@@ -45,8 +45,7 @@ impl Engine {
             }
 
             // Make sure we only make epsilon transitions if we are out of bounds
-            if input_index >= input.len() {
-                println!("Reached end of input, checking for epsilon transitions");
+            if input_index >= input.chars().count() {
                 if let Some(state) = self.states.iter().find(|s| s.id == current_state_id) {
                     for (_, next_state_id) in state
                         .transitions
@@ -65,7 +64,14 @@ impl Engine {
                 continue;
             }
 
-            let input_char = input.chars().nth(input_index).unwrap();
+            let input_char = input[input
+                .char_indices()
+                .nth(input_index)
+                .map(|(i, _)| i)
+                .unwrap()..]
+                .chars()
+                .next()
+                .unwrap();
             if let Some(state) = self.states.iter().find(|s| s.id == current_state_id) {
                 for (matcher, next_state_id) in state
                     .transitions
@@ -81,7 +87,7 @@ impl Engine {
                         memory.push(next_state_id.clone());
                         stack.push((next_state_id.clone(), input_index, memory.clone()));
                     } else {
-                        if input_index + 1 <= input.len() {
+                        if input_index + 1 <= input.chars().count() {
                             stack.push((next_state_id.clone(), input_index + 1, Vec::new()));
                         }
                     }

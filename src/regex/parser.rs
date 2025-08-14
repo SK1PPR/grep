@@ -19,8 +19,6 @@ fn parse(input: &str) -> Vec<Token> {
     let mut chars = input.chars().peekable();
     let mut current_token = Token::None;
 
-    println!("Parsing input: {}", input);
-
     while let Some(c) = chars.next() {
         match c {
             '+' => {

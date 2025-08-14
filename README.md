@@ -1,40 +1,53 @@
-[![progress-banner](https://backend.codecrafters.io/progress/grep/4576a335-71e4-47db-9983-2cda901616e3)](https://app.codecrafters.io/users/codecrafters-bot?r=2qF)
+# Rust Grep Clone
 
-This is a starting point for Rust solutions to the
-["Build Your Own grep" Challenge](https://app.codecrafters.io/courses/grep/overview).
+A command-line implementation of the `grep` utility written in Rust. This project demonstrates building a text search tool with regular expression support.
 
-[Regular expressions](https://en.wikipedia.org/wiki/Regular_expression)
-(Regexes, for short) are patterns used to match character combinations in
-strings. [`grep`](https://en.wikipedia.org/wiki/Grep) is a CLI tool for
-searching using Regexes.
+## Features
 
-In this challenge you'll build your own implementation of `grep`. Along the way
-we'll learn about Regex syntax, how parsers/lexers work, and how regular
-expressions are evaluated.
+- Text pattern matching using regular expressions
+- File content searching
+- Command-line interface similar to Unix grep
+- Efficient regex parsing and matching engine
 
-**Note**: If you're viewing this repo on GitHub, head over to
-[codecrafters.io](https://codecrafters.io) to try the challenge.
+## Implementation Details
 
-# Passing the first stage
+The regex engine is made entirely by myself using shunting yard and Thompson NFA. This provides a robust and efficient way to parse and match regular expressions.
 
-The entry point for your `grep` implementation is in `src/main.rs`. Study and
-uncomment the relevant code, and push your changes to pass the first stage:
+## Building
+
+To build the project:
 
 ```sh
-git add .
-git commit -m "pass 1st stage" # any msg
-git push origin master
+cargo build --release
 ```
 
-Time to move on to the next stage!
+## Running
 
-# Stage 2 & beyond
+To run the grep clone:
 
-Note: This section is for stages 2 and beyond.
+```sh
+cargo run -- "pattern" "filename"
+```
 
-1. Ensure you have `cargo (1.62)` installed locally
-1. Run `./your_program.sh` to run your program, which is implemented in
-   `src/main.rs`. This command compiles your Rust project, so it might be slow
-   the first time you run it. Subsequent runs will be fast.
-1. Commit your changes and run `git push origin master` to submit your solution
-   to CodeCrafters. Test output will be streamed to your terminal.
+Or after building:
+
+```sh
+./target/release/grep-starter-rust "pattern" "filename"
+```
+
+## Project Structure
+
+- `src/main.rs` - Main entry point and CLI handling
+- `src/regex/` - Regular expression engine implementation
+  - `parser.rs` - Regex parsing logic
+  - `engine.rs` - Regex matching engine
+  - `nfa_regex.rs` - NFA-based regex implementation
+  - `elements/` - Regex element definitions and matchers
+
+## Dependencies
+
+This project uses Rust's standard library and has no external dependencies.
+
+## License
+
+This project is open source and available under the MIT License.

@@ -4,9 +4,10 @@ use crate::regex::elements::{Matcher, State};
 use crate::regex::engine::Engine;
 use crate::regex::parser::Token;
 
+#[allow(dead_code)]
 pub struct RegexNFA {
     pub engine: Engine,
-    pub pattern: String,
+    pattern: String, 
     starts_with: bool,
     ends_with: bool,
 }
@@ -33,12 +34,10 @@ impl RegexNFA {
 
     pub fn matches(&self, input: &str) -> bool {
         if input.is_empty() {
-            println!("Input is empty, checking for empty match");
             return self.engine.compute(input) != -1;
         }
 
         if self.starts_with {
-            println!("Start reference is set, checking from the start of input");
             let index = self.engine.compute(input);
             if index >= 0 {
                 if self.ends_with {
@@ -54,7 +53,8 @@ impl RegexNFA {
 
         // Slice input and keep checking until found
         for i in 0..input.len() {
-            let index = self.engine.compute(&input[i..]);
+            let slice = input.chars().skip(i).take(input.len() - i).collect::<String>();
+            let index = self.engine.compute(&slice);
             if index >= 0 {
                 if self.ends_with {
                     if index as usize + i == input.len() {
@@ -71,7 +71,6 @@ impl RegexNFA {
 }
 
 fn create_engine(tokens: &Vec<Token>) -> Engine {
-    println!("Creating NFA from tokens: {:?}", tokens);
 
     let mut engine_stack: Vec<Engine> = vec![];
 
@@ -278,21 +277,21 @@ fn special_nfa_quantifier(engine: Engine, lazy: bool, quantifier: Quantifier) ->
         }
         Quantifier::Question => {
             if lazy {
-                new_engine.add_transition(start_state_id, Matcher::Epsilon, engine.start_state);
                 new_engine.add_transition(start_state_id, Matcher::Epsilon, end_state_id);
+                new_engine.add_transition(start_state_id, Matcher::Epsilon, engine.start_state);
             } else {
-                new_engine.add_transition(start_state_id, Matcher::Epsilon, end_state_id);
                 new_engine.add_transition(start_state_id, Matcher::Epsilon, engine.start_state);
+                new_engine.add_transition(start_state_id, Matcher::Epsilon, end_state_id);
             }
             new_engine.add_transition(engine.end_state, Matcher::Epsilon, end_state_id);
         }
         Quantifier::Plus => {
             if lazy {
-                new_engine.add_transition(engine.end_state, Matcher::Epsilon, start_state_id);
                 new_engine.add_transition(engine.end_state, Matcher::Epsilon, end_state_id);
+                new_engine.add_transition(engine.end_state, Matcher::Epsilon, start_state_id);
             } else {
-                new_engine.add_transition(engine.end_state, Matcher::Epsilon, end_state_id);
                 new_engine.add_transition(engine.end_state, Matcher::Epsilon, start_state_id);
+                new_engine.add_transition(engine.end_state, Matcher::Epsilon, end_state_id);
             }
             new_engine.add_transition(start_state_id, Matcher::Epsilon, engine.start_state);
         }

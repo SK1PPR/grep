@@ -19,6 +19,8 @@ fn parse(input: &str) -> Vec<Token> {
     let mut chars = input.chars().peekable();
     let mut current_token = Token::None;
 
+    println!("Parsing input: {}", input);
+
     while let Some(c) = chars.next() {
         match c {
             '+' => {
@@ -92,9 +94,9 @@ fn parse(input: &str) -> Vec<Token> {
             '\\' => {
                 if let Some(next_char) = chars.next() {
                     match next_char {
-                        'd' => tokens.push(Token::ComplexLiteral("\\d".to_string())), // Placeholder for digit
-                        'w' => tokens.push(Token::ComplexLiteral("\\w".to_string())), // Placeholder for word character
-                        's' => tokens.push(Token::ComplexLiteral("\\s".to_string())), // Placeholder for whitespace
+                        'd' => tokens.push(Token::ComplexLiteral("d".to_string())), // Placeholder for digit
+                        'w' => tokens.push(Token::ComplexLiteral("w".to_string())), // Placeholder for word character
+                        's' => tokens.push(Token::ComplexLiteral("s".to_string())), // Placeholder for whitespace
                         _ => tokens.push(Token::Literal(next_char)),
                         // TODO: Handle back references and other escape sequences
                     }

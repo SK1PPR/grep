@@ -272,7 +272,7 @@ mod tests {
         assert_eq!(regex_nfa.pattern, "a");
         assert!(regex_nfa.matches("aaab"));
         assert!(regex_nfa.matches("ab"));
-        assert!(!regex_nfa.matches("bba"));
+        assert!(regex_nfa.matches("bba"));
     }
 
     #[test]
@@ -297,5 +297,5 @@ mod tests {
         assert!(regex_nfa.matches("cccccab"));
     }
 
-    
+    // Test quantifiers and lazy quantifiers
 }

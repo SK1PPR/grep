@@ -15,7 +15,11 @@ impl Matcher {
         match self {
             Matcher::Range(chars, negated) => {
                 let contains = chars.contains(&c);
-                if *negated { !contains } else { contains }
+                if *negated {
+                    !contains
+                } else {
+                    contains
+                }
             }
             Matcher::Epsilon => true, // Epsilon matches all charcters
         }
@@ -103,7 +107,7 @@ impl Matcher {
                                 panic!("Invalid range in character class: {}-{}", start, end);
                             }
                             chars.extend(start..=end);
-                        } 
+                        }
                         // Add the current characters
                         for c in range_end.chars() {
                             chars.push(c);
@@ -116,15 +120,113 @@ impl Matcher {
                 chars.sort();
                 chars.dedup();
 
-                return Matcher::Range(
-                    chars,
-                    negated,
-                );
+                return Matcher::Range(chars, negated);
             }
         }
     }
 
     pub fn create_simple_matcher(input: &char) -> Matcher {
         Matcher::append_literal(Matcher::create_blank(false), *input)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_epsilon() {
+        let matcher = Matcher::Epsilon;
+        assert!(matcher.is_epsilon());
+        assert!(matcher.matches('a'));
+        assert!(matcher.matches('1'));
+        assert!(matcher.matches(' '));
+    }
+
+    #[test]
+    fn test_simple_matcher() {
+        let matcher = Matcher::create_simple_matcher(&'a');
+        assert!(!matcher.is_epsilon());
+        assert!(matcher.matches('a'));
+        assert!(!matcher.matches('b'));
+        assert!(!matcher.matches('1'));
+    }
+
+    #[test]
+    fn test_alphanumeric() {
+        let matcher = Matcher::create_complex_matcher('w'.to_string().as_str());
+        assert!(!matcher.is_epsilon());
+        assert!(matcher.matches('a'));
+        assert!(matcher.matches('Z'));
+        assert!(matcher.matches('1'));
+        assert!(matcher.matches('_'));
+        assert!(!matcher.matches(' '));
+    }
+
+    #[test]
+    fn test_digit() {
+        let matcher = Matcher::create_complex_matcher('d'.to_string().as_str());
+        assert!(!matcher.is_epsilon());
+        assert!(matcher.matches('0'));
+        assert!(matcher.matches('9'));
+        assert!(!matcher.matches('a'));
+        assert!(!matcher.matches(' '));
+    }
+
+    #[test]
+    fn test_character_class() {
+        let matcher = Matcher::create_complex_matcher("[a-zA-Z0-9_]".to_string().as_str());
+        assert!(!matcher.is_epsilon());
+        assert!(matcher.matches('a'));
+        assert!(matcher.matches('Z'));
+        assert!(matcher.matches('1'));
+        assert!(matcher.matches('_'));
+        assert!(!matcher.matches(' '));
+    }
+
+    #[test]
+    fn test_negated_charclass() {
+        let matcher = Matcher::create_complex_matcher("[^a-zA-Z0-9_]".to_string().as_str());
+        assert!(!matcher.is_epsilon());
+        assert!(!matcher.matches('a'));
+        assert!(!matcher.matches('Z'));
+        assert!(!matcher.matches('1'));
+        assert!(!matcher.matches('_'));
+        assert!(matcher.matches(' '));
+    }
+
+    #[test]
+    fn test_underscore() {
+        let matcher = Matcher::create_simple_matcher(&'_');
+        assert!(!matcher.is_epsilon());
+        assert!(matcher.matches('_'));
+        assert!(!matcher.matches('a'));
+        assert!(!matcher.matches(' '));
+
+        let matcher = Matcher::create_complex_matcher("[^_]".to_string().as_str());
+        assert!(!matcher.is_epsilon());
+        assert!(!matcher.matches('_'));
+        assert!(matcher.matches('a'));
+        assert!(matcher.matches(' '));
+    }
+
+    #[test]
+    fn test_character_group() {
+        let matcher = Matcher::create_complex_matcher("[abz]".to_string().as_str());
+        assert!(!matcher.is_epsilon());
+        assert!(matcher.matches('a'));
+        assert!(matcher.matches('z'));
+        assert!(!matcher.matches('A'));
+        assert!(!matcher.matches('1'));
+    }
+
+    #[test]
+    fn test_negated_character_group() {
+        let matcher = Matcher::create_complex_matcher("[^abz]".to_string().as_str());
+        assert!(!matcher.is_epsilon());
+        assert!(!matcher.matches('a'));
+        assert!(!matcher.matches('z'));
+        assert!(matcher.matches('A'));
+        assert!(matcher.matches('1'));
     }
 }

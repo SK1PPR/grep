@@ -18,16 +18,15 @@ fn main() {
         process::exit(1);
     }
 
-    let mut pattern = env::args().nth(2).unwrap();
+    let pattern = env::args().nth(2).unwrap();
     let mut input_line = String::new();
 
     io::stdin().read_line(&mut input_line).unwrap();
 
-    pattern.retain(|c| !c.is_whitespace());
-
     if match_pattern(&input_line, &pattern) {
         process::exit(0)
     } else {
+        println!("No match found for pattern: {}", pattern);
         process::exit(1)
     }
 }
